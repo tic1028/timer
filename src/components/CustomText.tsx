@@ -37,13 +37,14 @@ const CustomText: React.FC = () => {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onBlur={handleBlur}
-          className="w-full h-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full h-full min-h-[120px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           autoFocus
+          rows={5}
         />
       ) : (
         <div
           onClick={() => setIsEditing(true)}
-          className="w-full h-full p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 overflow-auto"
+          className="w-full h-full min-h-[120px] p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 overflow-auto whitespace-pre-wrap"
         >
           {text}
         </div>
