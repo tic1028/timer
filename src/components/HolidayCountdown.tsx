@@ -110,7 +110,25 @@ const HolidayCountdown: React.FC = () => {
     }));
   });
 
+  const [disabledDefaultHolidays, setDisabledDefaultHolidays] = useState<string[]>(() => {
+    const storedDisabled = localStorage.getItem('disabledDefaultHolidays');
+    return storedDisabled ? JSON.parse(storedDisabled) : [];
+  });
+
   const [ignoreNextClick, setIgnoreNextClick] = useState(false); // New state to handle ghost clicks
+
+  useEffect(() => {
+    localStorage.setItem('disabledDefaultHolidays', JSON.stringify(disabledDefaultHolidays));
+  }, [disabledDefaultHolidays]);
+
+  useEffect(() => {
+    // When saving, remove the getDate function as it cannot be serialized
+    const serializableCustomHolidays = customHolidays.map(holiday => {
+      const { getDate, ...rest } = holiday;
+      return rest;
+    });
+    localStorage.setItem('customHolidays', JSON.stringify(serializableCustomHolidays));
+  }, [customHolidays]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -133,8 +151,13 @@ const HolidayCountdown: React.FC = () => {
       let nextHolidayInfo: { holiday: Holiday; date: Date } | null = null;
       let minDays = Infinity;
 
-      // Check holidays in current year
-      HOLIDAYS.forEach(holiday => {
+      // Filter out disabled default holidays
+      const enabledDefaultHolidays = HOLIDAYS.filter(
+        holiday => !disabledDefaultHolidays.includes(holiday.name)
+      );
+
+      // Check enabled default holidays in current year
+      enabledDefaultHolidays.forEach(holiday => {
         const holidayDate = holiday.getDate(currentYear);
         const daysUntilHoliday = differenceInDays(holidayDate, today);
 
@@ -144,8 +167,8 @@ const HolidayCountdown: React.FC = () => {
         }
       });
 
-      // Check holidays in next year
-      HOLIDAYS.forEach(holiday => {
+      // Check enabled default holidays in next year
+      enabledDefaultHolidays.forEach(holiday => {
         const holidayDate = holiday.getDate(nextYear);
         const daysUntilHoliday = differenceInDays(holidayDate, today);
 
@@ -185,7 +208,7 @@ const HolidayCountdown: React.FC = () => {
     const interval = setInterval(calculateNextHoliday, 3600000); // Update every hour
 
     return () => clearInterval(interval);
-  }, [customHolidays]);
+  }, [customHolidays, disabledDefaultHolidays]); // Add disabledDefaultHolidays to the dependency array
 
   const handleAddHoliday = (holiday: Holiday) => {
     setCustomHolidays([...customHolidays, holiday]);
@@ -193,6 +216,20 @@ const HolidayCountdown: React.FC = () => {
 
   const handleDeleteHoliday = (holidayName: string) => {
     setCustomHolidays(customHolidays.filter(h => h.name !== holidayName));
+  };
+
+  const handleEditHoliday = (updatedHoliday: Holiday) => {
+    setCustomHolidays(customHolidays.map(holiday => 
+      holiday.name === updatedHoliday.name ? updatedHoliday : holiday
+    ));
+  };
+
+  const handleToggleDefaultHoliday = (holidayName: string, enable: boolean) => {
+    if (enable) {
+      setDisabledDefaultHolidays(disabledDefaultHolidays.filter(name => name !== holidayName));
+    } else {
+      setDisabledDefaultHolidays([...disabledDefaultHolidays, holidayName]);
+    }
   };
 
   const handleCloseSettingsModal = () => {
@@ -273,6 +310,10 @@ const HolidayCountdown: React.FC = () => {
           onAddHoliday={handleAddHoliday}
           onDeleteHoliday={handleDeleteHoliday}
           onClose={handleCloseSettingsModal} // Use the new handler
+          defaultHolidays={HOLIDAYS}
+          disabledDefaultHolidays={disabledDefaultHolidays}
+          onToggleDefaultHoliday={handleToggleDefaultHoliday}
+          onEditHoliday={handleEditHoliday} // Pass the new handler
         />
       )}
     </div>
