@@ -117,6 +117,7 @@ const Clock: React.FC<ClockProps> = ({ onOpenSpecialDatesManager }) => {
       return "Four days until the weekend! 🌈";
     }
     return `${daysUntilWeekend} days until the weekend! 🌟`;
+    console.log(daysUntilWeekend);
   };
 
   const getLunarDate = () => {
