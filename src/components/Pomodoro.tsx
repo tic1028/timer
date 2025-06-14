@@ -14,6 +14,60 @@ const Pomodoro: React.FC = () => {
   const [lastResetDate, setLastResetDate] = useState(new Date().toDateString());
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Load all state from localStorage on component mount
+  useEffect(() => {
+    const storedCompletedSessions = localStorage.getItem('pomodoroCompletedSessions');
+    const storedLastResetDate = localStorage.getItem('pomodoroLastResetDate');
+    const storedTimeLeft = localStorage.getItem('pomodoroTimeLeft');
+    const storedIsRunning = localStorage.getItem('pomodoroIsRunning');
+    const storedIsBreak = localStorage.getItem('pomodoroIsBreak');
+    const storedWorkMinutes = localStorage.getItem('pomodoroWorkMinutes');
+    const storedWorkSeconds = localStorage.getItem('pomodoroWorkSeconds');
+    const storedBreakMinutes = localStorage.getItem('pomodoroBreakMinutes');
+    const storedBreakSeconds = localStorage.getItem('pomodoroBreakSeconds');
+
+    if (storedCompletedSessions) {
+      setCompletedSessions(parseInt(storedCompletedSessions, 10));
+    }
+    if (storedLastResetDate) {
+      setLastResetDate(storedLastResetDate);
+    }
+    if (storedTimeLeft) {
+      setTimeLeft(parseInt(storedTimeLeft, 10));
+    }
+    if (storedIsRunning) {
+      setIsRunning(storedIsRunning === 'true');
+    }
+    if (storedIsBreak) {
+      setIsBreak(storedIsBreak === 'true');
+    }
+    if (storedWorkMinutes) {
+      setWorkMinutes(parseInt(storedWorkMinutes, 10));
+    }
+    if (storedWorkSeconds) {
+      setWorkSeconds(parseInt(storedWorkSeconds, 10));
+    }
+    if (storedBreakMinutes) {
+      setBreakMinutes(parseInt(storedBreakMinutes, 10));
+    }
+    if (storedBreakSeconds) {
+      setBreakSeconds(parseInt(storedBreakSeconds, 10));
+    }
+  }, []);
+
+  // Save all state to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('pomodoroCompletedSessions', completedSessions.toString());
+    localStorage.setItem('pomodoroLastResetDate', lastResetDate);
+    localStorage.setItem('pomodoroTimeLeft', timeLeft.toString());
+    localStorage.setItem('pomodoroIsRunning', isRunning.toString());
+    localStorage.setItem('pomodoroIsBreak', isBreak.toString());
+    localStorage.setItem('pomodoroWorkMinutes', workMinutes.toString());
+    localStorage.setItem('pomodoroWorkSeconds', workSeconds.toString());
+    localStorage.setItem('pomodoroBreakMinutes', breakMinutes.toString());
+    localStorage.setItem('pomodoroBreakSeconds', breakSeconds.toString());
+  }, [completedSessions, lastResetDate, timeLeft, isRunning, isBreak, workMinutes, workSeconds, breakMinutes, breakSeconds]);
+
   // Reset completed sessions if it's a new day
   useEffect(() => {
     const today = new Date().toDateString();

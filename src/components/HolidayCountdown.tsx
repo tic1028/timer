@@ -55,6 +55,19 @@ const HOLIDAYS: Holiday[] = [
     getDate: (year) => new Date(year, 6, 4)
   },
   {
+    name: "Labor Day",
+    month: 9,
+    day: 1,
+    isFixed: false,
+    getDate: (year: number) => {
+      const date = new Date(year, 8, 1); // September 1st
+      const dayOfWeek = date.getDay();
+      const daysToAdd = dayOfWeek === 1 ? 0 : (8 - dayOfWeek) % 7; // Move to next Monday if not already Monday
+      date.setDate(date.getDate() + daysToAdd);
+      return date;
+    }
+  },
+  {
     name: "Thanksgiving",
     month: 11,
     day: 24,
@@ -93,7 +106,7 @@ const HolidayCountdown: React.FC = () => {
             // @ts-ignore
             const solar = lunar.getSolar();
             const solarDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay());
-            const pacificDate = toZonedTime(solarDate, 'America/Los_Angeles');
+            const pacificDate = toZonedTime(solarDate, Intl.DateTimeFormat().resolvedOptions().timeZone);
             pacificDate.setHours(0, 0, 0, 0);
             return pacificDate;
           } catch (error) {
@@ -102,7 +115,7 @@ const HolidayCountdown: React.FC = () => {
           }
         } else {
           const date = new Date(year, holiday.month - 1, holiday.day);
-          const pacificDate = toZonedTime(date, 'America/Los_Angeles');
+          const pacificDate = toZonedTime(date, Intl.DateTimeFormat().resolvedOptions().timeZone);
           pacificDate.setHours(0, 0, 0, 0);
           return pacificDate;
         }
@@ -208,7 +221,7 @@ const HolidayCountdown: React.FC = () => {
     const interval = setInterval(calculateNextHoliday, 3600000); // Update every hour
 
     return () => clearInterval(interval);
-  }, [customHolidays, disabledDefaultHolidays]); // Add disabledDefaultHolidays to the dependency array
+  }, [customHolidays, disabledDefaultHolidays]);
 
   const handleAddHoliday = (holiday: Holiday) => {
     setCustomHolidays([...customHolidays, holiday]);
@@ -276,9 +289,9 @@ const HolidayCountdown: React.FC = () => {
             <p className="text-2xl font-medium text-red-500 mt-6 tracking-tight">
               {(() => {
                 const now = new Date();
-                const today = toZonedTime(now, 'America/Los_Angeles');
+                const today = toZonedTime(now, Intl.DateTimeFormat().resolvedOptions().timeZone);
                 today.setHours(0, 0, 0, 0);
-                const holidayDate = toZonedTime(nextHoliday.date, 'America/Los_Angeles');
+                const holidayDate = toZonedTime(nextHoliday.date, Intl.DateTimeFormat().resolvedOptions().timeZone);
                 holidayDate.setHours(0, 0, 0, 0);
                 const daysUntilHoliday = Math.floor((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                 return daysUntilHoliday === 0
