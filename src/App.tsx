@@ -48,7 +48,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6 md:p-8">
       <div className="max-w-[1600px] mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
           {/* Top Row Components */}
           <div className="relative bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 p-6 md:p-8 flex flex-col justify-center md:col-span-2">
             <Clock onOpenSpecialDatesManager={handleOpenSpecialDatesManager} />
@@ -58,19 +58,19 @@ function App() {
           </div>
 
           {/* Bottom Row Components */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 p-6 md:p-8 flex flex-col justify-center">
+          <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 p-6 md:p-8 flex flex-col h-full">
             <HolidayCountdown />
           </div>
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 p-6 md:p-8 flex flex-col justify-center">
+          <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 p-6 md:p-8 flex flex-col h-full justify-between">
             <WaterReminder />
             <button
               onClick={handleOpenCustomTextModal}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors duration-300"
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors duration-300 w-full"
             >
               Log Meal
             </button>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 p-6 md:p-8 flex flex-col justify-center">
+          <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 p-6 md:p-8 flex flex-col h-full">
             <Pomodoro />
           </div>
         </div>

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from 'date-fns';
 import { Lunar } from 'lunar-javascript';
 import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface CalendarWidgetProps {
   onClose: () => void;
+  holidays: Holiday[];
 }
 
 interface Holiday {
@@ -13,6 +14,8 @@ interface Holiday {
   day: number;
   isFixed: boolean;
   getDate: (year: number) => Date;
+  type?: 'US' | 'Chinese' | 'Custom';
+  isLunar?: boolean;
 }
 
 const US_HOLIDAYS: Holiday[] = [
@@ -167,145 +170,228 @@ const US_HOLIDAYS: Holiday[] = [
   }
 ];
 
-const CHINESE_HOLIDAYS = [
+const CHINESE_HOLIDAYS: Holiday[] = [
   {
     name: "春节",
     type: 'Chinese',
     isLunar: true,
-    lunarMonth: "正",
-    lunarDay: "初一"
+    month: 1, // Lunar month, not solar
+    day: 1,   // Lunar day, not solar
+    isFixed: true, // Fixed lunar date
+    getDate: (year) => {
+      try {
+        // @ts-ignore
+        const lunar = Lunar.fromYmd(year, 1, 1, true); // True for lunar month 1, day 1
+        // @ts-ignore
+        const solar = lunar.getSolar();
+        const solarDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay());
+        return solarDate;
+      } catch (error) {
+        console.error('Error converting lunar date for Spring Festival:', error);
+        return new Date(9999, 0, 1); // Return a far future date on error
+      }
+    }
   },
   {
     name: "清明节",
     type: 'Chinese',
     isLunar: false,
     month: 4,
-    day: 5
+    day: 5,
+    isFixed: true,
+    getDate: (year) => new Date(year, 3, 5)
   },
   {
     name: "国际劳动妇女节",
     type: 'Chinese',
     isLunar: false,
     month: 3,
-    day: 8
+    day: 8,
+    isFixed: true,
+    getDate: (year) => new Date(year, 2, 8)
   },
   {
     name: "植树节",
     type: 'Chinese',
     isLunar: false,
     month: 3,
-    day: 12
+    day: 12,
+    isFixed: true,
+    getDate: (year) => new Date(year, 2, 12)
   },
   {
     name: "国际劳动节",
     type: 'Chinese',
     isLunar: false,
     month: 5,
-    day: 1
+    day: 1,
+    isFixed: true,
+    getDate: (year) => new Date(year, 4, 1)
   },
   {
     name: "中国青年节",
     type: 'Chinese',
     isLunar: false,
     month: 5,
-    day: 4
+    day: 4,
+    isFixed: true,
+    getDate: (year) => new Date(year, 4, 4)
   },
   {
     name: "端午节",
     type: 'Chinese',
     isLunar: true,
-    lunarMonth: "五",
-    lunarDay: "初五"
+    month: 5, // Lunar month
+    day: 5,   // Lunar day
+    isFixed: true,
+    getDate: (year) => {
+      try {
+        // @ts-ignore
+        const lunar = Lunar.fromYmd(year, 5, 5, true); 
+        // @ts-ignore
+        const solar = lunar.getSolar();
+        const solarDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay());
+        return solarDate;
+      } catch (error) {
+        console.error('Error converting lunar date for Dragon Boat Festival:', error);
+        return new Date(9999, 0, 1);
+      }
+    }
   },
   {
     name: "儿童节",
     type: 'Chinese',
     isLunar: false,
     month: 6,
-    day: 1
+    day: 1,
+    isFixed: true,
+    getDate: (year) => new Date(year, 5, 1)
   },
   {
     name: "教师节",
     type: 'Chinese',
     isLunar: false,
     month: 9,
-    day: 10
+    day: 10,
+    isFixed: true,
+    getDate: (year) => new Date(year, 8, 10)
   },
   {
     name: "中秋节",
     type: 'Chinese',
     isLunar: true,
-    lunarMonth: "八",
-    lunarDay: "十五"
+    month: 8, // Lunar month
+    day: 15,  // Lunar day
+    isFixed: true,
+    getDate: (year) => {
+      try {
+        // @ts-ignore
+        const lunar = Lunar.fromYmd(year, 8, 15, true);
+        // @ts-ignore
+        const solar = lunar.getSolar();
+        const solarDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay());
+        return solarDate;
+      } catch (error) {
+        console.error('Error converting lunar date for Mid-Autumn Festival:', error);
+        return new Date(9999, 0, 1);
+      }
+    }
   },
   {
     name: "国庆节",
     type: 'Chinese',
     isLunar: false,
     month: 10,
-    day: 1
+    day: 1,
+    isFixed: true,
+    getDate: (year) => new Date(year, 9, 1)
   }
 ];
 
-const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClose }) => {
+const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClose, holidays }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [expandedDate, setExpandedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
+  const dayRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
-  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
-  const nextYear = () => setCurrentDate(addMonths(currentDate, 12));
-  const prevYear = () => setCurrentDate(subMonths(currentDate, 12));
+  const nextMonth = () => {
+    setSelectedDate(null); // Close popover when changing month
+    setCurrentDate(addMonths(currentDate, 1));
+  };
+  const prevMonth = () => {
+    setSelectedDate(null); // Close popover when changing month
+    setCurrentDate(subMonths(currentDate, 1));
+  };
+  const nextYear = () => {
+    setSelectedDate(null); // Close popover when changing year
+    setCurrentDate(addMonths(currentDate, 12));
+  };
+  const prevYear = () => {
+    setSelectedDate(null); // Close popover when changing year
+    setCurrentDate(subMonths(currentDate, 12));
+  };
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   const getHolidaysForDate = (date: Date) => {
-    const holidays = [];
-    
-    // Check US holidays
-    const usHoliday = US_HOLIDAYS.find(h => {
-      const holidayDate = h.getDate(date.getFullYear());
-      return holidayDate.getDate() === date.getDate() && 
-             holidayDate.getMonth() === date.getMonth();
+    const allHolidays = [
+      ...US_HOLIDAYS.map(h => ({ ...h, type: 'US' as const })),
+      ...CHINESE_HOLIDAYS.map(h => ({ ...h, type: 'Chinese' as const })),
+      ...holidays.map(h => ({ ...h, type: 'Custom' as const }))
+    ];
+    return allHolidays.filter(holiday => {
+      const holidayDate = holiday.getDate(date.getFullYear());
+      return (
+        holidayDate.getMonth() === date.getMonth() &&
+        holidayDate.getDate() === date.getDate()
+      );
     });
-    if (usHoliday) {
-      holidays.push({ name: usHoliday.name, type: 'US' });
-    }
-
-    // Check Chinese holidays
-    const lunar = Lunar.fromDate(date);
-    const lunarMonth = lunar.getMonthInChinese();
-    const lunarDay = lunar.getDayInChinese();
-    
-    // Check lunar-based holidays
-    CHINESE_HOLIDAYS.forEach(holiday => {
-      if (holiday.isLunar) {
-        if (lunarMonth === holiday.lunarMonth && lunarDay === holiday.lunarDay) {
-          holidays.push({ name: holiday.name, type: 'Chinese' });
-        }
-      } else {
-        // Check solar-based holidays
-        if (date.getMonth() + 1 === holiday.month && date.getDate() === holiday.day) {
-          holidays.push({ name: holiday.name, type: 'Chinese' });
-        }
-      }
-    });
-
-    return holidays;
   };
 
-  const handleDateClick = (date: Date) => {
-    setExpandedDate(expandedDate?.getTime() === date.getTime() ? null : date);
+  const handleDateClick = (day: Date) => {
+    if (selectedDate?.getTime() === day.getTime()) {
+      setSelectedDate(null);
+      setPopoverPosition(null);
+    } else {
+      setSelectedDate(day);
+      // Calculate position for the popover
+      const dayElement = dayRefs.current[day.toDateString()];
+      if (dayElement) {
+        const rect = dayElement.getBoundingClientRect();
+        const calendarRect = dayElement.closest('.bg-white.rounded-lg')?.getBoundingClientRect();
+        if (calendarRect) {
+          let left = rect.left - calendarRect.left;
+          const calendarWidth = calendarRect.width;
+          const popoverWidth = 200; // Approximate popover width
+
+          // Adjust position if it's near the right edge
+          if (left + popoverWidth > calendarWidth - 20) { // 20px buffer from right edge
+            left = left - popoverWidth + rect.width; // Shift left by popover width
+          }
+          setPopoverPosition({ top: rect.bottom - calendarRect.top + 10, left: left });
+        }
+      }
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-[800px] shadow-xl">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg p-6 w-[800px] shadow-xl relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
             <button
-              onClick={prevYear}
+              onClick={(e) => {
+                e.stopPropagation();
+                prevYear();
+              }}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               title="Previous Year"
             >
@@ -315,7 +401,10 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClose }) => {
               </div>
             </button>
             <button
-              onClick={prevMonth}
+              onClick={(e) => {
+                e.stopPropagation();
+                prevMonth();
+              }}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               title="Previous Month"
             >
@@ -329,14 +418,20 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClose }) => {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={nextMonth}
+              onClick={(e) => {
+                e.stopPropagation();
+                nextMonth();
+              }}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               title="Next Month"
             >
               <ChevronRightIcon className="h-6 w-6 text-gray-600" />
             </button>
             <button
-              onClick={nextYear}
+              onClick={(e) => {
+                e.stopPropagation();
+                nextYear();
+              }}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               title="Next Year"
             >
@@ -346,7 +441,10 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClose }) => {
               </div>
             </button>
             <button
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors ml-2"
             >
               <XMarkIcon className="h-6 w-6 text-gray-600" />
@@ -356,25 +454,28 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClose }) => {
         
         <div className="grid grid-cols-7 gap-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="text-center text-sm font-semibold text-gray-500 py-2">
+            <div key={day.toString()} className="text-center text-sm font-semibold text-gray-500 py-2">
               {day}
             </div>
           ))}
           
           {days.map(day => {
             const holidays = getHolidaysForDate(day);
-            const isExpanded = expandedDate?.getTime() === day.getTime();
+            const isCurrentDaySelected = selectedDate?.getTime() === day.getTime();
             
             return (
               <div
                 key={day.toString()}
-                onClick={() => handleDateClick(day)}
+                ref={el => { dayRefs.current[day.toDateString()] = el; }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDateClick(day);
+                }}
                 className={`
                   p-2 min-h-[100px] border border-gray-200 rounded-lg cursor-pointer
                   ${isToday(day) ? 'bg-blue-50 border-blue-200' : ''}
                   ${!isSameMonth(day, currentDate) ? 'text-gray-400 bg-gray-50' : ''}
                   hover:border-gray-300 transition-all duration-200
-                  ${isExpanded ? 'col-span-2 row-span-2 z-10 bg-white shadow-lg' : ''}
                 `}
               >
                 <div className="text-lg font-medium mb-1">{format(day, 'd')}</div>
@@ -383,34 +484,57 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClose }) => {
                     const displayName = holiday.name;
                     return (
                       <div 
-                        key={holiday.name} 
+                        key={`${holiday.name}-${holiday.type}`}
                         className={`
                           text-xs px-1.5 py-0.5 rounded-full truncate
-                          ${holiday.type === 'US' ? 'text-red-600 bg-red-50' : 'text-purple-600 bg-purple-50'}
+                          ${holiday.type === 'US' ? 'text-red-600 bg-red-50' : holiday.type === 'Chinese' ? 'text-green-600 bg-green-50' : 'text-purple-600 bg-purple-50'}
                         `}
                         title={holiday.name}
                       >
-                        {isExpanded ? holiday.name : displayName}
+                        {displayName}
                       </div>
                     );
                   })}
                 </div>
-                {isExpanded && (
-                  <div className="text-xs text-gray-500 mb-1">
-                    {(() => {
-                      const lunarDate = Lunar.fromDate(day);
-                      // @ts-ignore
-                      const fullString = (lunarDate as any).toFullString();
-                      const yearMatch = fullString.match(/([\u4E00-\u9FFF]{2}\([\u4E00-\u9FFF]+\)年)/);
-                      const chineseYear = yearMatch ? yearMatch[1] : '';
-                      return `农历 ${chineseYear} ${lunarDate.getMonthInChinese()}月${lunarDate.getDayInChinese()}`;
-                    })()}
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
+
+        {selectedDate && popoverPosition && (
+          <div
+            className="absolute bg-white p-4 rounded-lg shadow-lg z-50 w-[200px]"
+            style={{ top: popoverPosition.top, left: popoverPosition.left }}
+            onClick={(e) => e.stopPropagation()} // Prevent closing modal when clicking inside popover
+          >
+            <div className="text-lg font-bold mb-2">{format(selectedDate, 'MMMM d, yyyy')}</div>
+            <div className="text-sm text-gray-600 mb-2">
+              {(() => {
+                // @ts-ignore
+                const lunar = Lunar.fromDate(selectedDate);
+                // @ts-ignore
+                const lunarYear = lunar.getYearInGanZhi();
+                const lunarMonth = lunar.getMonthInChinese();
+                const lunarDay = lunar.getDayInChinese();
+                return `${lunarYear}年 ${lunarMonth}${lunarDay}`;
+              })()}
+            </div>
+            <div className="flex flex-col gap-1">
+              {getHolidaysForDate(selectedDate).map(holiday => (
+                <div 
+                  key={`${holiday.name}-${holiday.type}`}
+                  className={`
+                    text-xs px-1.5 py-0.5 rounded-full truncate
+                    ${holiday.type === 'US' ? 'text-red-600 bg-red-50' : holiday.type === 'Chinese' ? 'text-green-600 bg-green-50' : 'text-purple-600 bg-purple-50'}
+                  `}
+                  title={holiday.name}
+                >
+                  {holiday.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
