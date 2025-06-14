@@ -395,6 +395,18 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClose }) => {
                     );
                   })}
                 </div>
+                {isExpanded && (
+                  <div className="text-xs text-gray-500 mb-1">
+                    {(() => {
+                      const lunarDate = Lunar.fromDate(day);
+                      // @ts-ignore
+                      const fullString = (lunarDate as any).toFullString();
+                      const yearMatch = fullString.match(/([\u4E00-\u9FFF]{2}\([\u4E00-\u9FFF]+\)年)/);
+                      const chineseYear = yearMatch ? yearMatch[1] : '';
+                      return `农历 ${chineseYear} ${lunarDate.getMonthInChinese()}月${lunarDate.getDayInChinese()}`;
+                    })()}
+                  </div>
+                )}
               </div>
             );
           })}
