@@ -336,18 +336,29 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClose, holidays }) =>
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   const getHolidaysForDate = (date: Date) => {
-    const allHolidays = [
+    const allHolidays: Holiday[] = [
       ...US_HOLIDAYS.map(h => ({ ...h, type: 'US' as const })),
       ...CHINESE_HOLIDAYS.map(h => ({ ...h, type: 'Chinese' as const })),
       ...holidays.map(h => ({ ...h, type: 'Custom' as const }))
     ];
-    return allHolidays.filter(holiday => {
+
+    const uniqueHolidays: Holiday[] = [];
+    const seenHolidayNames = new Set<string>();
+
+    allHolidays.forEach(holiday => {
       const holidayDate = holiday.getDate(date.getFullYear());
-      return (
+      if (
         holidayDate.getMonth() === date.getMonth() &&
         holidayDate.getDate() === date.getDate()
-      );
+      ) {
+        // Only add if not already seen for this date (by name)
+        if (!seenHolidayNames.has(holiday.name)) {
+          uniqueHolidays.push(holiday);
+          seenHolidayNames.add(holiday.name);
+        }
+      }
     });
+    return uniqueHolidays;
   };
 
   const handleDateClick = (day: Date) => {

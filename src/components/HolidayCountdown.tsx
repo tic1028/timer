@@ -77,7 +77,7 @@ const HOLIDAYS: Holiday[] = [
 const HolidayCountdown: React.FC = () => {
   const [nextHoliday, setNextHoliday] = useState<{ holiday: Holiday; date: Date } | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false); // New state for settings modal
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [customHolidays, setCustomHolidays] = useState<Holiday[]>(() => {
     const storedHolidays = localStorage.getItem('customHolidays');
     if (!storedHolidays) return [];
@@ -110,11 +110,13 @@ const HolidayCountdown: React.FC = () => {
     }));
   });
 
+  const [ignoreNextClick, setIgnoreNextClick] = useState(false); // New state to handle ghost clicks
+
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         if (showCalendar) setShowCalendar(false);
-        if (showSettingsModal) setShowSettingsModal(false); // Close settings modal on escape
+        if (showSettingsModal) handleCloseSettingsModal(); // Use the new handler here too
       }
     };
 
@@ -183,7 +185,7 @@ const HolidayCountdown: React.FC = () => {
     const interval = setInterval(calculateNextHoliday, 3600000); // Update every hour
 
     return () => clearInterval(interval);
-  }, []);
+  }, [customHolidays]);
 
   const handleAddHoliday = (holiday: Holiday) => {
     setCustomHolidays([...customHolidays, holiday]);
@@ -193,12 +195,28 @@ const HolidayCountdown: React.FC = () => {
     setCustomHolidays(customHolidays.filter(h => h.name !== holidayName));
   };
 
+  const handleCloseSettingsModal = () => {
+    setShowSettingsModal(false);
+    setIgnoreNextClick(true); // Set flag to ignore next click
+    setTimeout(() => {
+      setIgnoreNextClick(false);
+    }, 100); // 100ms delay, should be enough to bypass ghost clicks
+  };
+
   if (!nextHoliday) return null;
 
   return (
     <div 
       className="flex flex-col cursor-pointer hover:bg-gray-50 transition-colors p-6 rounded-lg text-center"
-      onClick={() => setShowCalendar(true)}
+      onClick={() => {
+        if (ignoreNextClick) {
+          setIgnoreNextClick(false); // Reset immediately if it was triggered
+          return; // Do nothing
+        }
+        if (!showSettingsModal) {
+          setShowCalendar(true);
+        }
+      }}
     >
       <div className="flex justify-between w-full items-center mb-4">
         <h2 className="text-2xl font-bold text-gray-800">Next Holiday</h2>
@@ -254,7 +272,7 @@ const HolidayCountdown: React.FC = () => {
           customHolidays={customHolidays}
           onAddHoliday={handleAddHoliday}
           onDeleteHoliday={handleDeleteHoliday}
-          onClose={() => setShowSettingsModal(false)}
+          onClose={handleCloseSettingsModal} // Use the new handler
         />
       )}
     </div>

@@ -108,8 +108,17 @@ const HolidaySettingsModal: React.FC<HolidaySettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        e.stopPropagation(); // Stop propagation immediately
+        onClose(); // Then close the modal
+      }}
+    >
+      <div 
+        className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md"
+        onClick={(e) => e.stopPropagation()} // This prevents clicks inside the white box from closing the modal
+      >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Holiday Settings</h2>
           <button
