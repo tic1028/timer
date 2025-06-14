@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 
 interface SpecialDate {
   id: string;
@@ -25,6 +25,7 @@ const SpecialDatesManager: React.FC = () => {
   const [newMonth, setNewMonth] = useState<number | ''>(1);
   const [newDay, setNewDay] = useState<number | ''>(1);
   const [newType, setNewType] = useState<'birthday' | 'anniversary'>('birthday');
+  const [editingDateId, setEditingDateId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -34,32 +35,58 @@ const SpecialDatesManager: React.FC = () => {
     }
   }, [specialDates]);
 
-  const addSpecialDate = () => {
+  const resetForm = () => {
+    setNewName('');
+    setNewMonth(1);
+    setNewDay(1);
+    setNewType('birthday');
+    setEditingDateId(null);
+  };
+
+  const addOrUpdateSpecialDate = () => {
     if (newName.trim() && typeof newMonth === 'number' && typeof newDay === 'number' && newMonth >= 1 && newMonth <= 12 && newDay >= 1 && newDay <= 31) {
-      const newDate: SpecialDate = {
-        id: String(Date.now()),
-        name: newName.trim(),
-        month: newMonth,
-        day: newDay,
-        type: newType,
-      };
-      setSpecialDates(prev => [...prev, newDate]);
-      setNewName('');
-      setNewMonth(1);
-      setNewDay(1);
-      setNewType('birthday');
+      if (editingDateId) {
+        // Update existing date
+        setSpecialDates(prev => prev.map(date => 
+          date.id === editingDateId 
+            ? { ...date, name: newName.trim(), month: newMonth, day: newDay, type: newType }
+            : date
+        ));
+      } else {
+        // Add new date
+        const newDate: SpecialDate = {
+          id: String(Date.now()),
+          name: newName.trim(),
+          month: newMonth,
+          day: newDay,
+          type: newType,
+        };
+        setSpecialDates(prev => [...prev, newDate]);
+      }
+      resetForm();
     }
   };
 
   const deleteSpecialDate = (id: string) => {
     setSpecialDates(prev => prev.filter(date => date.id !== id));
+    if (editingDateId === id) {
+      resetForm();
+    }
+  };
+
+  const startEdit = (date: SpecialDate) => {
+    setNewName(date.name);
+    setNewMonth(date.month);
+    setNewDay(date.day);
+    setNewType(date.type);
+    setEditingDateId(date.id);
   };
 
   return (
     <div className="space-y-4 p-4">
       <h2 className="text-2xl font-bold text-gray-800">Manage Special Dates</h2>
       
-      {/* Add New Special Date Form */}
+      {/* Add/Edit Special Date Form */}
       <div className="grid grid-cols-2 gap-4 items-end bg-gray-50 p-4 rounded-lg">
         <div>
           <label className="block text-sm font-medium text-gray-700">Name</label>
@@ -105,11 +132,24 @@ const SpecialDatesManager: React.FC = () => {
           </select>
         </div>
         <button
-          onClick={addSpecialDate}
+          onClick={addOrUpdateSpecialDate}
           className="col-span-2 px-4 py-2 bg-blue-500 text-white rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
-          <PlusIcon className="h-5 w-5 inline-block mr-2" /> Add Date
+          {editingDateId ? (
+            <PencilIcon className="h-5 w-5 inline-block mr-2" />
+          ) : (
+            <PlusIcon className="h-5 w-5 inline-block mr-2" />
+          )}
+          {editingDateId ? 'Save Changes' : 'Add Date'}
         </button>
+        {editingDateId && (
+          <button
+            onClick={resetForm}
+            className="col-span-2 px-4 py-2 bg-gray-300 text-gray-800 rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          >
+            Cancel Edit
+          </button>
+        )}
       </div>
 
       {/* List of Special Dates */}
@@ -127,12 +167,20 @@ const SpecialDatesManager: React.FC = () => {
                     {date.type === 'birthday' ? 'Birthday' : 'Anniversary'} on {date.month}/{date.day}
                   </p>
                 </div>
-                <button
-                  onClick={() => deleteSpecialDate(date.id)}
-                  className="ml-4 p-2 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => startEdit(date)}
+                    className="p-2 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-50"
+                  >
+                    <PencilIcon className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => deleteSpecialDate(date.id)}
+                    className="p-2 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

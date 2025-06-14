@@ -34,7 +34,7 @@ const Clock: React.FC<ClockProps> = ({ onOpenSpecialDatesManager }) => {
       return [];
     }
   });
-  const [nextSpecialDateInfo, setNextSpecialDateInfo] = useState<{ name: string; days: number; type: 'birthday' | 'anniversary' } | null>(null);
+  const [nextSpecialDateInfo, setNextSpecialDateInfo] = useState<Array<{ name: string; days: number; type: 'birthday' | 'anniversary' }>>([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -58,39 +58,31 @@ const Clock: React.FC<ClockProps> = ({ onOpenSpecialDatesManager }) => {
     const calculateNextSpecialDate = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Normalize to start of day
-      let closestSpecialDate: { name: string; date: Date; type: 'birthday' | 'anniversary' } | null = null;
-      let minDays = Infinity;
+      const upcomingDates: Array<{ name: string; date: Date; type: 'birthday' | 'anniversary'; days: number }> = [];
 
       for (const sDate of specialDates) {
         let sDateThisYear = new Date(today.getFullYear(), sDate.month - 1, sDate.day);
         let sDateNextYear = new Date(today.getFullYear() + 1, sDate.month - 1, sDate.day);
 
-        // Consider this year's date if it's today or in the future
-        if (!isFuture(sDateThisYear) && !isBefore(sDateThisYear, today)) {
-            closestSpecialDate = { name: sDate.name, date: sDateThisYear, type: sDate.type };
-            minDays = 0;
-            break; 
-        } else if (isFuture(sDateThisYear)) {
-            const daysUntil = differenceInDays(sDateThisYear, today);
-            if (daysUntil >= 0 && daysUntil < minDays) {
-                minDays = daysUntil;
-                closestSpecialDate = { name: sDate.name, date: sDateThisYear, type: sDate.type };
-            }
+        // Check for this year's date
+        if (isFuture(sDateThisYear) || (!isFuture(sDateThisYear) && !isBefore(sDateThisYear, today))) {
+          const daysUntil = differenceInDays(sDateThisYear, today);
+          if (daysUntil >= 0 && daysUntil <= 7) {
+            upcomingDates.push({ name: sDate.name, date: sDateThisYear, type: sDate.type, days: daysUntil });
+          }
         }
 
-        // Always consider next year's date
-        const daysUntilNextYear = differenceInDays(sDateNextYear, today);
-        if (daysUntilNextYear >= 0 && daysUntilNextYear < minDays) {
-            minDays = daysUntilNextYear;
-            closestSpecialDate = { name: sDate.name, date: sDateNextYear, type: sDate.type };
+        // Check for next year's date if this year's date has passed or is too far in the future
+        if (isBefore(sDateThisYear, today) || differenceInDays(sDateThisYear, today) > 7) {
+          const daysUntilNextYear = differenceInDays(sDateNextYear, today);
+          if (daysUntilNextYear >= 0 && daysUntilNextYear <= 7) {
+            upcomingDates.push({ name: sDate.name, date: sDateNextYear, type: sDate.type, days: daysUntilNextYear });
+          }
         }
       }
-
-      if (closestSpecialDate && minDays <= 7) { // Within one week
-        setNextSpecialDateInfo({ name: closestSpecialDate.name, days: minDays, type: closestSpecialDate.type });
-      } else {
-        setNextSpecialDateInfo(null);
-      }
+      
+      upcomingDates.sort((a, b) => a.days - b.days);
+      setNextSpecialDateInfo(upcomingDates.map(({ name, days, type }) => ({ name, days, type })));
     };
 
     calculateNextSpecialDate();
@@ -155,12 +147,16 @@ const Clock: React.FC<ClockProps> = ({ onOpenSpecialDatesManager }) => {
       <div className="text-xl font-medium text-blue-600">
         {getWeekendMessage()}
       </div>
-      {nextSpecialDateInfo && (
-        <p className="text-xl mt-2 text-center text-red-500">
-          {nextSpecialDateInfo.days === 0 
-            ? `${nextSpecialDateInfo.name}'s ${nextSpecialDateInfo.type === 'birthday' ? 'Birthday' : 'Anniversary'} is Today! 🎉`
-            : `${nextSpecialDateInfo.name}'s ${nextSpecialDateInfo.type === 'birthday' ? 'Birthday' : 'Anniversary'} is in ${nextSpecialDateInfo.days} ${nextSpecialDateInfo.days === 1 ? 'day' : 'days'}!`}
-        </p>
+      {nextSpecialDateInfo.length > 0 && (
+        <div className="text-xl mt-2 text-center text-red-500">
+          {nextSpecialDateInfo.map((dateInfo, index) => (
+            <p key={index}>
+              {dateInfo.days === 0 
+                ? `${dateInfo.name}'s ${dateInfo.type === 'birthday' ? 'Birthday' : 'Anniversary'} is Today! 🎉`
+                : `${dateInfo.name}'s ${dateInfo.type === 'birthday' ? 'Birthday' : 'Anniversary'} is in ${dateInfo.days} ${dateInfo.days === 1 ? 'day' : 'days'}!`}
+            </p>
+          ))}
+        </div>
       )}
       {/* Temporary button to add example special dates for testing */}
       {/* <button onClick={addSpecialDateForTesting} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded">Add Example Special Date</button> */}

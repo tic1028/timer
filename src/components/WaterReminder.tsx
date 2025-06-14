@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 
+const WATER_COUNT_STORAGE_KEY = 'water-count';
+
 const WaterReminder: React.FC = () => {
-  const [waterCount, setWaterCount] = useState<number>(0);
+  const [waterCount, setWaterCount] = useState<number>(() => {
+    try {
+      const savedCount = localStorage.getItem(WATER_COUNT_STORAGE_KEY);
+      return savedCount ? parseInt(savedCount, 10) : 0;
+    } catch (error) {
+      console.error("Failed to load water count from local storage:", error);
+      return 0;
+    }
+  });
   const [nextReminder, setNextReminder] = useState<number>(0);
   const [showReminder, setShowReminder] = useState<boolean>(false);
   const [isRandomInterval, setIsRandomInterval] = useState<boolean>(true);
@@ -27,6 +37,15 @@ const WaterReminder: React.FC = () => {
     // Create audio element
     audioRef.current = new Audio('/notification-sound.mp3');
   }, []);
+
+  useEffect(() => {
+    // Save water count to local storage whenever it changes
+    try {
+      localStorage.setItem(WATER_COUNT_STORAGE_KEY, String(waterCount));
+    } catch (error) {
+      console.error("Failed to save water count to local storage:", error);
+    }
+  }, [waterCount]);
 
   const getRandomInterval = () => {
     // Random interval between 30 and 70 minutes
@@ -64,9 +83,12 @@ const WaterReminder: React.FC = () => {
   }, [isRandomInterval, customInterval, intervalUnit]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      showNotification();
-    }, nextReminder);
+    let timer: NodeJS.Timeout;
+    if (nextReminder > 0) {
+      timer = setInterval(() => {
+        showNotification();
+      }, nextReminder);
+    }
 
     return () => clearInterval(timer);
   }, [nextReminder]);
